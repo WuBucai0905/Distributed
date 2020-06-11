@@ -1,0 +1,313 @@
+# aiohttp + asyncio
+
+# aiohttp
+
+异步web库
+
+python3.5版本开始加入了`async`/`await`关键字
+
+async定义一个协程，await用于挂起阻塞的异步调用接口
+
+## 使用配合asyncio模块
+
+## 发送session请求
+
+```
+async with aiohttp.ClientSession() as session:　　#协程嵌套，只需要处理最外层协程即可fetch_async
+  async with session.get(url) as resp:
+  	await resp.text() # await关键字，实现异步。所有他上面的函数体需要声明为异步async
+  	# 特殊响应内容json
+  	# await resp.json()
+```
+
+session还支持其他方法：
+
+```
+session.put('http://httpbin.org/put', data=b'data')
+session.delete('http://httpbin.org/delete')
+session.head('http://httpbin.org/get')
+session.options('http://httpbin.org/get')
+session.patch('http://httpbin.org/patch', data=b'data')
+```
+
+一般情况下只需要创建一个session，然后使用这个session执行所有的请求。每个session对象，内部包含了一个连接池，并且将会保持连接和连接复用（默认开启）可以加快整体的性能。
+
+### 关于ClientSession 对象的自定义
+
+```
+使用代理（包含代理需要认证的情况）：
+conn = aiohttp.ProxyConnector(proxy="http://some.proxy.com",	proxy_auth=aiohttp.BasicAuth('user', 'pass') # 代理认证)
+session = aiohttp.ClientSession(connector=conn)
+
+自定义cookie(自定义headers的话 数据要是dict格式)：
+aiohttp.ClientSession({'cookies_are': 'working'})
+
+超时设置
+timeout = aiohttp.ClientTimeout(total=1)
+aiohttp.ClientSession(timeout=timeout)
+
+并发设置（直接放置在对应的爬取方法里面，使用 async with 语句将 semaphore 作为上下文对象即可）
+semaphore = asyncio.Semaphore(CONCURRENCY)
+async with semaphore:
+	async with aiohttp.ClientSession().get(URL)
+```
+
+## 在url中传递参数
+
+与requests模块使用大致相同; 只需要将参数字典，传入params参数中即可
+
+## 获取响应内容
+
+获取响应内容是一个阻塞耗时的过程， await实现协程切换
+
+### 使用text()方法
+
+```
+查看编码 r.charset
+```
+
+### 使用read()方法
+
+不进行编码，为字节形式
+
+text(),read()方法是把整个响应体读入内存，如果你是获取大量的数据，请考虑使用”字节流“（StreamResponse）
+
+### StreamResponse
+
+不像text,read一次获取所有数据
+
+```
+async def func1(url,params):
+	async with aiohttp.ClientSession() as session:
+		# session.get()是Response对象，他继承于StreamResponse
+		async with session.get(url,params=params) as r:
+   print(await r.content.read(10)) #读取前10字节
+```
+
+### 获取网站响应状态码
+
+```
+async with session.get(url) as resp:
+	print(resp.status)
+```
+
+### 查看响应头
+
+```
+resp.headers 来查看响应头，得到的值类型是一个dict：
+resp.raw_headers　　查看原生的响应头，字节类型
+```
+
+#### 重定向的响应头
+
+```
+resp.history　　#查看被重定向之前的响应头
+```
+
+### 获取网站cookie
+
+```
+# response header
+session.cookie_jar.filter_cookies("https://segmentfault.com")
+```
+
+resp.cookie只会获取到当前url下设置的cookie;
+
+而cookie_jar.filter_cookies 会维护整站的cookie
+
+## cookie的安全性
+
+通过设置aiohttp.CookieJar 的 unsafe=True 来配置
+
+```python
+jar = aiohttp.CookieJar(unsafe=True)
+session = aiohttp.ClientSession(cookie_jar=jar)
+```
+
+## 连接池（控制同时连接的数量）
+
+TCPConnector维持链接池，限制并行连接的总量，当池满了，有请求退出再加入新请求
+
+```
+conn = aiohttp.TCPConnector(limit=2)　　#默认100，0表示无限
+aiohttp.ClientSession(connector=conn)
+```
+
+限制同时打开连接到同一端点的数量（(host, port, is_ssl) 三的倍数），可以通过设置 limit_per_host 参数：
+
+limit_per_host： 同一端点的最大连接数量。同一端点即(host, port, is_ssl)完全相同
+
+```
+conn = aiohttp.TCPConnector(limit_per_host=30) #默认是0
+```
+
+## POST传递数据
+
+### 模拟表单
+
+```
+# data=dict的方式post的数据将被转码，和form提交数据是一样的作用
+# 如果你不想被转码，可以直接以字符串的形式 data=str 提交，这样就不会被转码。
+payload = {'key1': 'value1', 'key2': 'value2'}
+session.post('http://httpbin.org/post',data=payload)
+```
+
+### JSON
+
+```
+payload = {'some': 'data'}
+# json.dumps(payload)返回的也是一个字符串，只不过这个字符串可以被识别为json格式
+session.post(url, data=json.dumps(payload))
+```
+
+### 小文件
+
+```
+# 方法1
+url = 'http://httpbin.org/post'
+files = {'file': open('report.xls', 'rb')}
+session.post(url, data=files)
+# 方法2
+url = 'http://httpbin.org/post'
+data = FormData()
+data.add_field('file',
+    open('report.xls', 'rb'),
+    filename='report.xls',
+    content_type='application/vnd.ms-excel')
+session.post(url, data=data)
+```
+
+如果将文件对象设置为数据参数，aiohttp将自动以字节流的形式发送给服务器
+
+### 大文件
+
+aiohttp支持多种类型的文件以流媒体的形式上传，所以我们可以在文件未读入内存的情况下发送大文件
+
+```
+@aiohttp.streamer
+def file_sender(writer, file_name=None):
+ with open(file_name, 'rb') as f:
+  chunk = f.read(2**16)
+  while chunk:
+   yield from writer.write(chunk)
+   chunk = f.read(2**16)
+# Then you can use `file_sender` as a data provider
+session.post('http://httpbin.org/post',data=file_sender(file_name='huge_file'))
+```
+
+### POST预压缩数据
+
+通过aiohttp发送前就已经压缩的数据, 调用压缩函数的函数名（通常是deflate 或 zlib）作为content-encoding的值
+
+```
+async def my_coroutine(session, headers, my_data):
+	data = zlib.compress(my_data)
+	headers = {'Content-Encoding': 'deflate'}
+	async with session.post('http://httpbin.org/post',
+       data=data,
+       headers=headers)
+```
+
+## 自定义域名解析地址
+
+可以指定域名服务器的 IP 对我们提供的get或post的url进行解析
+
+```
+from aiohttp.resolver import AsyncResolver
+resolver = AsyncResolver(nameservers=["8.8.8.8", "8.8.4.4"])
+conn = aiohttp.TCPConnector(resolver=resolver)
+```
+
+# asyncio
+
+aysncio实现了并发
+
+async def 用来定义异步函数，其内部有异步操作。
+
+每个线程有一个事件循环
+
+主线程调用 asyncio.get_event_loop() 时会创建事件循环
+
+把异步的任务丢给这个循环的 run_until_complete()方法，事件循环会安排协同程序的执行
+
+## 实现过程
+
+### 定义一个协程
+
+**async关键字** 定义一个协程（coroutine）, 协程不能直接运行，需要将协程加入到事件循环loop中
+
+asyncio.get_event_loop：创建一个事件循环
+
+然后使用 run_until_complete 将协程注册到事件循环，并启动事件循环
+
+### 创建一个task
+
+注册事件循环的时候，其实是  run_until_complete方法  将协程包装成为了一个任务（task）对象
+
+task对象是Future类的子类，保存了协程运行后的状态，用于未来获取协程的结果
+
+```
+task = loop.create_task(coroutine)
+task = asyncio.ensure_future(coroutine)
+```
+
+### 绑定回调
+
+在task执行完成的时候可以获取执行的结果，回调的最后一个参数是future对象，通过该对象可以获取协程返回值
+
+通过add_done_callback方法给task任务添加回调函数，当task（也可以说是coroutine）执行完成的时候,就会调用回调函数。并通过参数future获取协程执行的结果。
+
+### 阻塞和await
+
+await可以针对耗时的操作进行挂起，就像生成器里的yield一样，函数让出控制权。
+
+协程遇到await，事件循环将会挂起该协程，执行别的协程，直到其他的协程也挂起或者执行完毕，再进行下一个协程的执行
+
+### 并发与并行
+
+asyncio.wait(tasks) 也可以使用 asyncio.gather(*tasks) ,前者接受一个task列表，后者接收一堆task。
+
+### 协程嵌套
+
+一个协程中await了另外一个协程
+
+** ** 待开发 ** **
+
+### 协程停止
+
+future对象有几个状态：
+
+Pending Running Done Cacelled
+
+创建future的时候，task为pending，事件循环调用执行的时候当然就是running，调用完毕自然就是done。
+
+如果需要停止事件循环，就需要先把task取消。可以使用asyncio.Task获取事件循环的task
+
+### 不同线程的事件循环
+
+```
+对于主线程是loop=get_event_loop(). 
+对于其他线程需要首先loop=new_event_loop(),然后set_event_loop(loop)。
+	new_event_loop()是创建一个event loop对象，
+	set_event_loop(eventloop对象)是将event loop对象指定为当前协程的event loop
+```
+
+一个协程内只允许 运行一个 event loop
+
+## 多链接的异步访问
+
+将 异步函数包装在asyncio的Future对象中【asyncio.ensure_future】，然后将Future对象列表【task.append()】作为任务传递给事件循环
+
+## 收集HTTP响应
+
+```
+asyncio.gather(*tasks)
+```
+
+## 异常解决
+
+并发达到1000个，程序会报错：ValueError: too many file descriptors in select()
+
+### 处理方法
+
+限制并发数量
