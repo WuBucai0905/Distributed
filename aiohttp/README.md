@@ -234,11 +234,22 @@ async def 用来定义异步函数，其内部有异步操作。
 
 ### 定义一个协程
 
-**async关键字** 定义一个协程（coroutine）, 协程不能直接运行，需要将协程加入到事件循环loop中
-
 asyncio.get_event_loop：创建一个事件循环
 
-然后使用 run_until_complete 将协程注册到事件循环，并启动事件循环
+然后使用 run_until_complete 将协程对象注册到事件循环，并启动事件循环
+
+ensure_future() 函数把 协程对象 包装成了 future
+
+run_until_complete() 	参数：future
+
+run_until_complete() 内部会做检查，会自动将 协程对象 封装为 future
+
+**async关键字**  定义一个协程（coroutine）, 协程不能直接运行，返回的是一个协程对象，需要将协对象程加入到事件循环loop中
+
+#### 协程对象运行有两种方式：
+
+- 在一个运行的协程中用 await 等待它
+- 通过 ensure_future 函数计划他的运行。协程对象包装成了 future
 
 ### 创建一个task
 
@@ -253,6 +264,10 @@ task = asyncio.ensure_future(coroutine)
 
 ### 绑定回调
 
+#### 需求场景：
+
+协程是一个 IO 的读写操作，等它读完数据后，我们希望得到通知，以便下一步数据的处理。
+
 在task执行完成的时候可以获取执行的结果，回调的最后一个参数是future对象，通过该对象可以获取协程返回值
 
 通过add_done_callback方法给task任务添加回调函数，当task（也可以说是coroutine）执行完成的时候,就会调用回调函数。并通过参数future获取协程执行的结果。
@@ -263,9 +278,21 @@ await可以针对耗时的操作进行挂起，就像生成器里的yield一样�
 
 协程遇到await，事件循环将会挂起该协程，执行别的协程，直到其他的协程也挂起或者执行完毕，再进行下一个协程的执行
 
-### 并发与并行
+### 并发(多个协程)
 
-asyncio.wait(tasks) 也可以使用 asyncio.gather(*tasks) ,前者接受一个task列表，后者接收一堆task。
+#### asyncio.gather(*tasks)
+
+将多个协程交给loop，需要借助 **asyncio.gather 函数**
+
+```
+loop.run_until_complete(asyncio.gather(do_some_work(1), do_some_work(3)))
+```
+
+也可以 先将协程存在列表里
+
+#### asyncio.wait(tasks) 
+
+接受一个task列表
 
 ### 协程嵌套
 
@@ -293,6 +320,69 @@ Pending Running Done Cacelled
 ```
 
 一个协程内只允许 运行一个 event loop
+
+## run_until_complete和run_forever
+
+###  run_until_complete
+
+`run_until_complete` 来运行 loop ，等到 future 完成，`run_until_complete` 也就返回了
+
+```
+async def do_some_work(x):
+    print('Waiting ' + str(x))
+    await asyncio.sleep(x)
+    print('Done')
+loop = asyncio.get_event_loop()
+coro = do_some_work(3)
+loop.run_until_complete(coro)
+
+输出：
+Waiting 3
+<等待三秒钟>
+Done
+<程序退出>
+```
+
+### run_forever
+
+`run_forever` 会一直运行，直到 `stop`被调用 。
+
+但是如果 `run_forever` 不返回，`stop` 永远也不会被调用。所以，只能在协程中调 `stop` 。
+
+```
+# loop里面单个协程的程序退出
+async def do_some_work(loop, x):
+    print('Waiting ' + str(x))
+    await asyncio.sleep(x)
+    print('Done')
+    loop.stop()
+```
+
+loop里面多个协程的程序退出，需要用到 gather 将多个协程合并为一个future， 并添加 回调， 然后在回调里面去停止loop。
+
+```
+# loop里面多个协程的程序退出
+async def do_some_work(loop, x):
+    print('Waiting ' + str(x))
+    await asyncio.sleep(x)
+    print('Done')
+
+def done_callback(loop, futu):
+    loop.stop()
+
+loop = asyncio.get_event_loop()
+
+futus = asyncio.gather(do_some_work(loop, 1), do_some_work(loop, 3))
+futus.add_done_callback(functools.partial(done_callback, loop))
+
+loop.run_forever()
+```
+
+### loop.close
+
+loop只要不关闭就还可以再运行。
+
+如果关闭了就不能再运行了。
 
 ## 多链接的异步访问
 
