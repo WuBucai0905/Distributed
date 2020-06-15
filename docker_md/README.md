@@ -14,7 +14,22 @@ docker客户端、docker服务器、docker镜像、registry、docker容器
 
 ## 制作 容器镜像
 
+### Dockerfile
+
 docker 使用 dockerfile文件来描述 镜像的构建过程。
+
+每一层构建之后记得清理掉无关的文件，这样镜像不会显得臃肿
+
+**例子**
+
+```
+mkdir mynginx
+cd mynginx/
+touch Dockerfile
+vi Dockerfile
+编辑
+docker build -t nginx:v3 .
+```
 
 ```
 内容定义如下：
@@ -22,6 +37,7 @@ FROM指令 指定了基础镜像是python:3.6-alpine
 WORKDIR指令 做的是工作目录切换
 ADD指令 将当前目录下的所有内容（app.py、requirements.txt）复制到镜像的 /app 目录下【ADD . /app】
 RUN指令 运行pip命令安装依赖
+# RUN很多命令时 用 "\ &&"符号连接
 EXPOSE指令 暴露允许被外界访问的端口
 ENV指令 设置环境变量
 CMD指令 设置容器内进程
@@ -31,6 +47,42 @@ Docker 容器的启动进程为实际为 ENTRYPOINT，而不是 CMD
 ```
 
 docker build 会自动加载当前目录下的 Dockerfile 文件，然后按照顺序执行Dockerfile文件中的指令。【 -t 的作用是给这个镜像加一个 Tag，即：起一个好听的名字】
+
+### commit
+
+黑箱镜像
+
+**例子**
+
+```
+docker run --name webserver -d -p 80:80 nginx
+docker exec -it webserver bash
+​```
+# > 重定向
+# echo '<h1>li siyang</h1>' >/usr/share/nginx/html/index.html
+​```
+docker commit ...
+docker diff webserver 查看哪些变化
+```
+
+```
+docker commit [选项] <容器ID或容器名> [<仓库名>[:<标签>]]
+[选项] --author	|	--message
+```
+
+查看之前做了哪些操作：
+
+```
+docker history <仓库名>:<标签>
+```
+
+### 制作后上传
+
+```
+docker info 看是否登录
+docker tag nginx:v3 <仓库名称:v3>
+docker push <仓库名称:v3>
+```
 
 ## 运行镜像得到容器
 
