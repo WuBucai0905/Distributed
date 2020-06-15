@@ -302,8 +302,6 @@ docker inspect [ helloworld:latest ] 查看镜像的元信息
 docker image rm 删除镜像
 ```
 
-
-
 NAT技术
 
 公有IP地址 内部来规划私有网络
@@ -314,5 +312,19 @@ NAT技术
 # 详情请看hpptd
 # docker run -d -p 80 httpd
 docker run -d -p  80:80 httpd
+```
+
+## Docker-compose
+
+通过docker-compose.yml文件构建和管理复杂多容器组合
+
+```
+# 前提必须先安装好docker
+# Step 1: 以ubuntu为例，下载docker-compose
+ $ sudo curl -L https://github.com/docker/compose/releases/download/1.17.0/docker-compose-`uname -s`-`uname -m` -o /usr/local/bin/docker-compose
+# Step 2: 给予docker-compose可执行权限
+ $ sudo chmod +x /usr/local/bin/docker-compose
+# Step 3: 查看docker-compose版本
+ $ docker-compose --version
 ```
 
