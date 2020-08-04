@@ -1,14 +1,16 @@
 # scrapy
 
-## 流程
+scrapy基于 twisted，性能是最大的优势
 
-### 创建项目
+## 1.流程
+
+### 1.1创建项目
 
 ```
 scrapy  startproject  项目名称
 ```
 
-### 创建spider
+### 1.2创建spider
 
 ```
 cd 项目名称
@@ -22,7 +24,7 @@ spider类有三个属性：name、allowed_domains 和 start_urls，还有一个�
 - start_urls，它包含了 Spider 在启动时爬取的 url 列表，初始请求是由它来定义的。
 - parse，它是 Spider 的一个方法。默认情况下，被调用时 start_urls 里面的链接构成的请求完成下载执行后，返回的响应就会作为唯一的参数传递给这个函数。该方法负责解析返回的响应、提取数据或者进一步生成要处理的请求。
 
-### 创建item
+### 1.3创建item
 
 继承scrapy.Item类，定义类型为scrapy.Field字段
 
@@ -30,17 +32,17 @@ item保存爬取数据的容器，它的使用方法和字典类似。
 
 相比字典，Item 多了额外的保护机制，可以避免拼写错误或者定义字段错误。
 
-### 解析request得到Response
+### 1.4解析request得到Response
 
 parse() 直接解析网页内容
 
 提取的方式可以是css选择器或者是xpath选择器
 
-### 使用Item
+### 1.5使用Item
 
 Item 可以理解为一个字典，不过在声明的时候需要实例化，最后需要将 item 返回
 
-### 后续request
+### 1.6后续request
 
 构造请求需要用到 scrapy.Request
 
@@ -51,13 +53,13 @@ Item 可以理解为一个字典，不过在声明的时候需要实例化，最
 - meta： 来传递url内的参数
 - dont_filter： 是否去重
 
-### 运行
+### 1.7运行
 
 ```
 scrapy crawl 项目名称
 ```
 
-### 保存到文件
+### 1.8保存到文件
 
 Scrapy 提供的 Feed Exports 可以轻松将抓取结果输出
 
@@ -75,7 +77,7 @@ scrapy crawl 项目名称 -o xxxx.jl(xxxx.jsonlines)
 
 另外还可以通过自定义 ItemExporter 来实现其他的输出【还支持 ftp、s3 等远程输出】。
 
-### 保存到数据库
+### 1.9保存到数据库
 
 **保存到文件【输出到数据库】Item Pipeline**
 
@@ -100,16 +102,9 @@ close_spider方法   当 Spider 被关闭时，这个方法会调用，在这里
 
 process_item方法   执行了数据插入操作
 
-# scrapy_redis
 
-## 源码分析
 
-```
-RFPDupeFilter中的request_seen()生成指纹
-Scheduler中的 close()方法中的persist是否持久化; enqueue_request() and逻辑与:返回第一个为假的表达式，否则返回最后的表达式 or逻辑或:返回第一个为真的表达式，否则返回最后的表达式
+## 2.细节
 
-```
+### 2.1提取结构化数据
 
-scrapy中的spider中的start_request()中的dont_filter默认为True
-
-##############################################

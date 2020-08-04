@@ -1,6 +1,4 @@
-# 关于redis
-
-## 发布订阅
+# 发布订阅
 
 发布订阅里面有哪些模块？ 角色、发布者、频道、订阅者
 
@@ -11,26 +9,21 @@
 取消订阅unsubscribe [channel]
 ```
 
-## 持久化
+# 2.持久化
 
-将内存中的数据异步的保存到磁盘上的操作
+将 内存中的数据异步的保存到磁盘上的操作
 
-### 实现方式
+## 2.1实现方式
 
-#### 快照
+### 2.1.1快照
 
 redis的RDB；	mysql的dump
 
-#### 写日志
-
-redis的AOF；	hbase的hlog；	mysql的binlog
-
-### RDB
+#### RDB
 
 触发机制【主要三种方式】
 
 - save【同步】	文件策略：RDB文件新替换老	复杂度o(n)
-
 - bgsave【异步】fork() 
 - 自动
 
@@ -43,13 +36,17 @@ rdbcompression yes # 压缩
 rdbchecksum yes # 检验
 ```
 
-### AOF
+### 2.1.2写日志
 
-RDB问题：耗时，耗性能；不可控，丢失数据
+redis的AOF；	mysql的binlog
+
+> 使用AOF原因： RDB问题：耗时，耗性能；不可控，丢失数据
+
+#### AOF
 
 将读写操作通过自己的方式写入到AOF文件中
 
-**AOF的三种策略**
+##### 三种策略
 
 - always	缓冲区的写命令 每条命令fsync到硬盘的aof文件中
 
@@ -57,7 +54,7 @@ RDB问题：耗时，耗性能；不可控，丢失数据
 
 - no	OS决定 fsync
 
-**实现方式**
+##### 实现方式
 
 bgrewriteaof
 
